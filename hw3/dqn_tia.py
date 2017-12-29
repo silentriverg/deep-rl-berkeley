@@ -6,10 +6,24 @@ import ipdb
 import itertools
 import numpy as np
 import sys
-import tensorflow                as tf
+import tensorflow as tf
 
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedule"])
+NUM_ACTION_TIA = 166
+NUM_TIMER = 13
 
+def controller(state, setpoint, t):
+    # setpoint top bound 38 bottom bound 203
+    # action 0,1 not move; 2,4 up; 3,5 down
+    setpoint = setpoint + 38
+
+    if state > setpoint + 5 and t % 2 == 1:
+        controller_output = 2
+    elif state < setpoint - 5 and t % 2 == 1:
+        controller_output = 3
+    else:
+        controller_output = 1
+    return controller_output
 
 def learn(env,
           q_func,
@@ -76,7 +90,7 @@ def learn(env,
         If not None gradients' norms are clipped to this value.
     """
     assert type(env.observation_space) == gym.spaces.Box
-    assert type(env.action_space) == gym.spaces.Discrete
+    assert type(env.action_space)      == gym.spaces.Discrete
 
     ###############
     # BUILD MODEL #
@@ -88,13 +102,14 @@ def learn(env,
     else:
         img_h, img_w, img_c = env.observation_space.shape
         input_shape = (img_h, img_w, frame_history_len * img_c)
-    num_actions = env.action_space.n
+    #num_actions = env.action_space.n
+    num_actions = NUM_ACTION_TIA * NUM_TIMER
 
     # set up placeholders
     # placeholder for current observation (or state)
     obs_t_ph = tf.placeholder(tf.uint8, [None] + list(input_shape))
     # placeholder for current action
-    act_t_ph = tf.placeholder(tf.int32, [None])
+    act_t_ph = tf.placeholder(tf.int32,   [None])
     # placeholder for current reward
     rew_t_ph = tf.placeholder(tf.float32, [None])
     # placeholder for next observation (or state)
@@ -107,31 +122,9 @@ def learn(env,
     done_mask_ph = tf.placeholder(tf.float32, [None])
 
     # casting to float on GPU ensures lower data transfer times.
-    obs_t_float = tf.cast(obs_t_ph, tf.float32) / 255.0
+    obs_t_float = tf.cast(obs_t_ph,   tf.float32) / 255.0
     obs_tp1_float = tf.cast(obs_tp1_ph, tf.float32) / 255.0
 
-    # Here, you should fill in your own code to compute the Bellman error. This requires
-    # evaluating the current and next Q-values and constructing the corresponding error.
-    # TensorFlow will differentiate this error for you, you just need to pass it to the
-    # optimizer. See assignment text for details.
-    # Your code should produce one scalar-valued tensor: total_error
-    # This will be passed to the optimizer in the provided code below.
-    # Your code should also produce two collections of variables:
-    # q_func_vars
-    # target_q_func_vars
-    # These should hold all of the variables of the Q-function network and target network,
-    # respectively. A convenient way to get these is to make use of TF's "scope" feature.
-    # For example, you can create your Q-function network with the scope "q_func" like this:
-    # <something> = q_func(obs_t_float, num_actions, scope="q_func", reuse=False)
-    # And then you can obtain the variables like this:
-    # q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func')
-    # Older versions of TensorFlow may require using "VARIABLES" instead of "GLOBAL_VARIABLES"
-
-    # Construct the q-function and q function vars
-
-    # NOTE: Here in the target_q I had as the first param obs_tp1_float and it
-    # was causing the algorhitm not to converge. Just a bug. No depth at all.
-    # Nor eason to work with same observations.
     target_q = q_func(obs_tp1_float, num_actions, scope="target_q_func", reuse=False)
     q = q_func(obs_t_float, num_actions, scope="q_func", reuse=False)
 
@@ -146,11 +139,11 @@ def learn(env,
     learning_rate = tf.placeholder(tf.float32, (), name="learning_rate")
     optimizer = optimizer_spec.constructor(learning_rate=learning_rate, **optimizer_spec.kwargs)
     train_fn = minimize_and_clip(optimizer, total_error,
-                                 var_list=q_func_vars, clip_val=grad_norm_clipping)
+                 var_list=q_func_vars, clip_val=grad_norm_clipping)
 
     # update_target_fn will be called periodically to copy Q network to target Q network
     update_target_fn = []
-    for var, var_target in zip(sorted(q_func_vars, key=lambda v: v.name),
+    for var, var_target in zip(sorted(q_func_vars,        key=lambda v: v.name),
                                sorted(target_q_func_vars, key=lambda v: v.name)):
         update_target_fn.append(var_target.assign(var))
     update_target_fn = tf.group(*update_target_fn)
@@ -163,7 +156,7 @@ def learn(env,
     ###############
     model_initialized = False
     num_param_updates = 0
-    mean_episode_reward = -float('nan')
+    mean_episode_reward      = -float('nan')
     best_mean_episode_reward = -float('inf')
     last_obs = env.reset()
     LOG_EVERY_N_STEPS = 10000
@@ -173,38 +166,6 @@ def learn(env,
         if stopping_criterion is not None and stopping_criterion(env, t):
             break
 
-        ### 2. Step the env and store the transition
-        # At this point, "last_obs" contains the latest observation that was
-        # recorded from the simulator. Here, your code needs to store this
-        # observation and its outcome (reward, next observation, etc.) into
-        # the replay buffer while stepping the simulator forward one step.
-        # At the end of this block of code, the simulator should have been
-        # advanced one step, and the replay buffer should contain one more
-        # transition.
-        # Specifically, last_obs must point to the new latest observation.
-        # Useful functions you'll need to call:
-        # obs, reward, done, info = env.step(action)
-        # this steps the environment forward one step
-        # obs = env.reset()
-        # this resets the environment if you reached an episode boundary.
-        # Don't forget to call env.reset() to get a new observation if done
-        # is true!!
-        # Note that you cannot use "last_obs" directly as input
-        # into your network, since it needs to be processed to include context
-        # from previous frames. You should check out the replay buffer
-        # implementation in dqn_utils.py to see what functionality the replay
-        # buffer exposes. The replay buffer has a function called
-        # encode_recent_observation that will take the latest observation
-        # that you pushed into the buffer and compute the corresponding
-        # input that should be given to a Q network by appending some
-        # previous frames.
-        # Don't forget to include epsilon greedy exploration!
-        # And remember that the first time you enter this loop, the model
-        # may not yet have been initialized (but of course, the first step
-        # might as well be random, since you haven't trained your net...)
-
-        #####
-
         idx = replay_buffer.store_frame(last_obs)
         q_input = replay_buffer.encode_recent_observation()
 
@@ -213,80 +174,49 @@ def learn(env,
         if model_initialized and not choose_random_action:
             action_values = session.run(q, feed_dict={obs_t_ph: [q_input]})
             action = np.argmax(action_values)
+            setpoint = int(action / NUM_TIMER)
+            timer = action % NUM_TIMER
+            cum_reward = 0
         else:
             action = np.random.randint(num_actions)
+            setpoint = int(action / NUM_TIMER)
+            timer = action % NUM_TIMER
+            cum_reward = 0
+            controller_output = 0
 
-        last_obs, reward, done, info = env.step(action)
-        replay_buffer.store_effect(idx, action, reward, done)
+        for tt in range(timer):
+            controller_output = controller(last_obs[51], setpoint, tt)
+            last_obs, reward, done, info = env.step(controller_output)
+            cum_reward = cum_reward + reward
 
-        if done:
-            last_obs = env.reset()
+            if done:
+                last_obs = env.reset()
+                break
 
-        #####
 
-        # at this point, the environment should have been advanced one step (and
-        # reset if done was true), and last_obs should point to the new latest
-        # observation
+        replay_buffer.store_effect(idx, action, cum_reward, done)
 
-        ### 3. Perform experience replay and train the network.
-        # note that this is only done if the replay buffer contains enough samples
-        # for us to learn something useful -- until then, the model will not be
-        # initialized and random actions should be taken
+        #print (last_obs)
+        #print(action)
+
+
+
         if (t > learning_starts and
-                        t % learning_freq == 0 and
+                t % learning_freq == 0 and
                 replay_buffer.can_sample(batch_size)):
-            # Here, you should perform training. Training consists of four steps:
-            # 3.a: use the replay buffer to sample a batch of transitions (see the
-            # replay buffer code for function definition, each batch that you sample
-            # should consist of current observations, current actions, rewards,
-            # next observations, and done indicator).
-            # 3.b: initialize the model if it has not been initialized yet; to do
-            # that, call
-            #    initialize_interdependent_variables(session, tf.global_variables(), {
-            #        obs_t_ph: obs_t_batch,
-            #        obs_tp1_ph: obs_tp1_batch,
-            #    })
-            # where obs_t_batch and obs_tp1_batch are the batches of observations at
-            # the current and next time step. The boolean variable model_initialized
-            # indicates whether or not the model has been initialized.
-            # Remember that you have to update the target network too (see 3.d)!
-            # 3.c: train the model. To do this, you'll need to use the train_fn and
-            # total_error ops that were created earlier: total_error is what you
-            # created to compute the total Bellman error in a batch, and train_fn
-            # will actually perform a gradient step and update the network parameters
-            # to reduce total_error. When calling session.run on these you'll need to
-            # populate the following placeholders:
-            # obs_t_ph
-            # act_t_ph
-            # rew_t_ph
-            # obs_tp1_ph
-            # done_mask_ph
-            # (this is needed for computing total_error)
-            # learning_rate -- you can get this from optimizer_spec.lr_schedule.value(t)
-            # (this is needed by the optimizer to choose the learning rate)
-            # 3.d: periodically update the target network by calling
-            # session.run(update_target_fn)
-            # you should update every target_update_freq steps, and you may find the
-            # variable num_param_updates useful for this (it was initialized to 0)
-            #####
-
-            # 3.a
             (
                 obs_batch, act_batch, rew_batch, next_obs_batch, done_masks
             ) = replay_buffer.sample(batch_size)
 
             # 3.b
             if not model_initialized:
-                print(
-                80 * "=")
-                print(
-                "INITIALIZING THE MODELINO")
+                print (80 * "=")
+                print ("INITIALIZING THE MODELINO")
                 initialize_interdependent_variables(session, tf.global_variables(), {
                     obs_t_ph: obs_batch,
                     obs_tp1_ph: next_obs_batch
                 })
-                print
-                80 * "="
+                print (80 * "=")
                 session.run(update_target_fn)
                 model_initialized = True
 
@@ -302,12 +232,9 @@ def learn(env,
 
             # 3.d: periodically update the target network by calling
             if t // target_update_freq > num_param_updates:
-                print
-                80 * "="
-                print
-                "Updating the target network"
-                print
-                80 * "="
+                print (80 * "=")
+                print ("Updating the target network")
+                print (80 * "=")
                 session.run(update_target_fn)
                 num_param_updates += 1
             """
@@ -325,9 +252,11 @@ def learn(env,
         if len(episode_rewards) > 100:
             best_mean_episode_reward = max(best_mean_episode_reward, mean_episode_reward)
         if t % LOG_EVERY_N_STEPS == 0 and model_initialized:
+            mean_action_value = np.mean(action_values)
             print("Timestep {:,}".format(t))
             print("mean reward (100 episodes) %f" % mean_episode_reward)
             print("best mean reward %f" % best_mean_episode_reward)
+            print("mean Q-value %f" % mean_action_value)
             print("episodes %d" % len(episode_rewards))
             print("exploration %f" % exploration.value(t))
             print("learning_rate %f" % optimizer_spec.lr_schedule.value(t))

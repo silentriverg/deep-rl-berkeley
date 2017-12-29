@@ -285,8 +285,8 @@ def learn(env,
                     obs_t_ph: obs_batch,
                     obs_tp1_ph: next_obs_batch
                 })
-                print
-                80 * "="
+                print(
+                80 * "=")
                 session.run(update_target_fn)
                 model_initialized = True
 
@@ -302,12 +302,12 @@ def learn(env,
 
             # 3.d: periodically update the target network by calling
             if t // target_update_freq > num_param_updates:
-                print
-                80 * "="
-                print
-                "Updating the target network"
-                print
-                80 * "="
+                print(
+                80 * "=")
+                print(
+                "Updating the target network")
+                print(
+                80 * "=")
                 session.run(update_target_fn)
                 num_param_updates += 1
             """

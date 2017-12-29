@@ -181,12 +181,12 @@ def learn(env,
             action_values = session.run(q, feed_dict={obs_t_ph: [q_input]})
             action = np.argmax(action_values)
             setpoint = action
-            timer = timer_table[setpoint]
+            timer = timer_table[abs(setpoint-last_obs[51])]
             cum_reward = 0
         else:
             action = np.random.randint(num_actions)
             setpoint = action
-            timer = timer_table[setpoint]
+            timer = timer_table[abs(setpoint-last_obs[51])]
             cum_reward = 0
             controller_output = 0
 

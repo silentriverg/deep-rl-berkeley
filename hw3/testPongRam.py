@@ -2,32 +2,37 @@ import gym
 import pandas as pb
 import tensorflow as tf
 import time
-import dqn
+import dqn_tia
+from atari_wrappers import *
 
 env = gym.make('Pong-ram-v0')
+#env = wrap_deepmind_ram(env)
 env.reset()
-env.unwrapped.get_action_meanings()
+
+print(env.unwrapped.get_action_meanings())
 
 initialized = False
 
 for t in range(1000):
     env.render()
-    setpoint = 100
+    setpoint = 155
 
     if not initialized:
         control_output = 0
         initialized = True
     else:
-        control_output = dqn.controller(last_obs[51], setpoint, t)
+        control_output = dqn_tia.controller(agent_pos, setpoint, t)
 
     last_obs, reward, done, info = env.step(control_output)
+    reward1 = reward
+    agent_pos = last_obs[51]
     #last_obs, reward, done, info = env.step(env.action_space.sample()) # take a random action
     #last_obs, reward, done, info = env.step(3)
     #print (last_obs)
     #out = tf.concat(last_obs[4:5], last_obs[8:9], last_obs[11:13], last_obs[21:22], last_obs[50:51], last_obs[60:61],last_obs[64:65])
     #print (last_obs[21])
-    print (last_obs[51])
-    time.sleep(0.2)
+    #print (last_obs[51])
+    time.sleep(0.1)
     # resolution 210*160
     # 21: vertical value of ball;
     # 49: horizontal value of ball

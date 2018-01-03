@@ -10,14 +10,12 @@ import tensorflow as tf
 import generateTimer
 
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedule"])
-NUM_ACTION_TIMER = 166
-NUM_TIMER = 13
-EFF_RANGE = 9
+NUM_ACTION_TIMER = 11#166
+EFF_RANGE = 8
 
 def controller(state, setpoint):
     # setpoint top bound 38 bottom bound 203
     # action 0,1 not move; 2,4 up; 3,5 down
-    setpoint = setpoint + 38
 
     if state > setpoint + EFF_RANGE:
         controller_output = 2
@@ -180,13 +178,13 @@ def learn(env,
         if model_initialized and not choose_random_action:
             action_values = session.run(q, feed_dict={obs_t_ph: [q_input]})
             action = np.argmax(action_values)
-            setpoint = action
-            timer = timer_table[abs(setpoint-last_obs[51])]
+            setpoint = action * 16 + 38
+            timer = timer_table[action]
             cum_reward = 0
         else:
             action = np.random.randint(num_actions)
-            setpoint = action
-            timer = timer_table[abs(setpoint-last_obs[51])]
+            setpoint = action * 16 + 38
+            timer = timer_table[action]
             cum_reward = 0
             controller_output = 0
 
@@ -199,8 +197,8 @@ def learn(env,
                 last_obs = env.reset()
                 break
 
-
-        replay_buffer.store_effect(idx, action, cum_reward, done)
+        if timer != 0:
+            replay_buffer.store_effect(idx, action, cum_reward, done)
 
         #print (last_obs)
         #print(action)
@@ -258,11 +256,11 @@ def learn(env,
         if len(episode_rewards) > 100:
             best_mean_episode_reward = max(best_mean_episode_reward, mean_episode_reward)
         if t % LOG_EVERY_N_STEPS == 0 and model_initialized:
-            mean_action_value = np.mean(action_values)
+            max_action_value = np.max(action_values)
             print("Timestep {:,}".format(t))
             print("mean reward (100 episodes) %f" % mean_episode_reward)
             print("best mean reward %f" % best_mean_episode_reward)
-            print("mean Q-value %f" % mean_action_value)
+            print("max Q-value %f" % max_action_value)
             print("episodes %d" % len(episode_rewards))
             print("exploration %f" % exploration.value(t))
             print("learning_rate %f" % optimizer_spec.lr_schedule.value(t))

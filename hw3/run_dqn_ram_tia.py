@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
-import dqn
+import dqn_tia
 from dqn_utils import *
 from atari_wrappers import *
 
@@ -18,9 +18,12 @@ def atari_model(ram_in, num_actions, scope, reuse=False):
         #out = tf.concat(1,(ram_in[:,4:5],ram_in[:,8:9],ram_in[:,11:13],ram_in[:,21:22],ram_in[:,50:51], ram_in[:,60:61],ram_in[:,64:65]))
         #out = tf.concat(1,(ram_in[:, 21:22], ram_in[:, 49:50], ram_in[:, 51:52],ram_in[:, 54:55]))
         with tf.variable_scope("action_value"):
-            out = layers.fully_connected(out, num_outputs=256, activation_fn=tf.nn.relu)
-            out = layers.fully_connected(out, num_outputs=128, activation_fn=tf.nn.relu)
-            out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
+            out = layers.fully_connected(out, num_outputs=512, activation_fn=tf.nn.relu)
+            out = layers.fully_connected(out, num_outputs=1024, activation_fn=tf.nn.relu)
+            out = layers.fully_connected(out, num_outputs=2048, activation_fn=tf.nn.relu)
+            out = layers.fully_connected(out, num_outputs=4096, activation_fn=tf.nn.relu)
+            out = layers.fully_connected(out, num_outputs=4096, activation_fn=tf.nn.relu)
+            out = layers.fully_connected(out, num_outputs=2048, activation_fn=tf.nn.relu)
             out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
 
         return out
@@ -34,11 +37,11 @@ def atari_learn(env,
     lr_multiplier = 1.0 
     lr_schedule = PiecewiseSchedule([
                                          (0,                   1e-4 * lr_multiplier),
-                                         (num_iterations / 10, 1e-4 * lr_multiplier),
-                                         (num_iterations / 2,  5e-5 * lr_multiplier),
+                                         (num_iterations / 10, 5e-5 * lr_multiplier),
+                                         (num_iterations / 2,  2e-5 * lr_multiplier),
                                     ],
                                     outside_value=5e-5 * lr_multiplier)
-    optimizer = dqn.OptimizerSpec(
+    optimizer = dqn_tia.OptimizerSpec(
         constructor=tf.train.AdamOptimizer,
         kwargs=dict(epsilon=1e-4),
         lr_schedule=lr_schedule
@@ -57,7 +60,7 @@ def atari_learn(env,
         ], outside_value=0.01
     )
 
-    dqn.learn(
+    dqn_tia.learn(
         env,
         q_func=atari_model,
         optimizer_spec=optimizer,
@@ -107,7 +110,7 @@ def get_env(seed):
 
     expt_dir = '/tmp/hw3_vid_dir/'
     env = wrappers.Monitor(env, osp.join(expt_dir, "gym"), force=True)
-    env = wrap_deepmind_ram(env)
+    env = wrap_deepmind_ram(env, 1)
 
     return env
 

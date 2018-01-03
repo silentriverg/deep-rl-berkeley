@@ -9,17 +9,20 @@ def train_timer(num_action, eff_range):
 
     timer = []
 
-    for sp in range(num_action):
+    for action in range(num_action):
         env.reset()
+        sp = action * 16 + 38
         for _ in range(100):
             last_obs, _, _, _ = env.step(2)
             if last_obs[51]==38:
                 break
+        for _ in range(5):
+            last_obs, _, _, _ = env.step(0)
         for t in range(100):
             control_output = dqn_timer.controller(last_obs[51], sp)
             last_obs, _, _, _ = env.step(control_output)
             agent_pos = last_obs[51]
-            if agent_pos <= sp+38+eff_range and agent_pos >= sp+38-eff_range:
+            if agent_pos <= sp+eff_range and agent_pos >= sp-eff_range:
                 timer.append(t)
                 break
 
@@ -29,7 +32,7 @@ def train_timer(num_action, eff_range):
 """
 def main():
     # Run training
-    timer = train_timer(166, 9)
+    timer = train_timer(11, 8)
     print(timer)
 
 if __name__ == "__main__":

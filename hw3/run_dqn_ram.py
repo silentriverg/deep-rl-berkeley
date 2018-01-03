@@ -17,6 +17,8 @@ def atari_model(ram_in, num_actions, scope, reuse=False):
         out = ram_in
         #out = tf.concat(1,(ram_in[:,4:5],ram_in[:,8:9],ram_in[:,11:13],ram_in[:,21:22],ram_in[:,50:51], ram_in[:,60:61],ram_in[:,64:65]))
         with tf.variable_scope("action_value"):
+            out = layers.fully_connected(out, num_outputs=1024, activation_fn=tf.nn.relu)
+            out = layers.fully_connected(out, num_outputs=512, activation_fn=tf.nn.relu)
             out = layers.fully_connected(out, num_outputs=256, activation_fn=tf.nn.relu)
             out = layers.fully_connected(out, num_outputs=128, activation_fn=tf.nn.relu)
             out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
@@ -106,7 +108,7 @@ def get_env(seed):
 
     expt_dir = '/tmp/hw3_vid_dir/'
     env = wrappers.Monitor(env, osp.join(expt_dir, "gym"), force=True)
-    env = wrap_deepmind_ram(env)
+    env = wrap_deepmind_ram(env, 4)
 
     return env
 

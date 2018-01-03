@@ -11,15 +11,16 @@ import tensorflow as tf
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedule"])
 NUM_ACTION_TIA = 166
 NUM_TIMER = 13
+EFF_RANGE = 5
 
 def controller(state, setpoint, t):
     # setpoint top bound 38 bottom bound 203
     # action 0,1 not move; 2,4 up; 3,5 down
     setpoint = setpoint + 38
 
-    if state > setpoint + 5 and t % 2 == 1:
+    if state > setpoint + EFF_RANGE and t%2 == 0:
         controller_output = 2
-    elif state < setpoint - 5 and t % 2 == 1:
+    elif state < setpoint - EFF_RANGE and t%2 == 1:
         controller_output = 3
     else:
         controller_output = 1
@@ -182,10 +183,13 @@ def learn(env,
             setpoint = int(action / NUM_TIMER)
             timer = action % NUM_TIMER
             cum_reward = 0
-            controller_output = 0
+
+        #print("setpoint %d" % (setpoint+38))
+        #print("timer %d" % (timer))
 
         for tt in range(timer):
-            controller_output = controller(last_obs[51], setpoint, tt)
+            agent_pos = last_obs[51]
+            controller_output = controller(agent_pos, setpoint, tt)
             last_obs, reward, done, info = env.step(controller_output)
             cum_reward = cum_reward + reward
 
@@ -252,11 +256,11 @@ def learn(env,
         if len(episode_rewards) > 100:
             best_mean_episode_reward = max(best_mean_episode_reward, mean_episode_reward)
         if t % LOG_EVERY_N_STEPS == 0 and model_initialized:
-            mean_action_value = np.mean(action_values)
+            max_action_value = np.max(action_values)
             print("Timestep {:,}".format(t))
             print("mean reward (100 episodes) %f" % mean_episode_reward)
             print("best mean reward %f" % best_mean_episode_reward)
-            print("mean Q-value %f" % mean_action_value)
+            print("max Q-value %f" % max_action_value)
             print("episodes %d" % len(episode_rewards))
             print("exploration %f" % exploration.value(t))
             print("learning_rate %f" % optimizer_spec.lr_schedule.value(t))

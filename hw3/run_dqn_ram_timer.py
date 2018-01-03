@@ -18,9 +18,8 @@ def atari_model(ram_in, num_actions, scope, reuse=False):
         #out = tf.concat(1,(ram_in[:,4:5],ram_in[:,8:9],ram_in[:,11:13],ram_in[:,21:22],ram_in[:,50:51], ram_in[:,60:61],ram_in[:,64:65]))
         #out = tf.concat(1,(ram_in[:, 21:22], ram_in[:, 49:50], ram_in[:, 51:52],ram_in[:, 54:55]))
         with tf.variable_scope("action_value"):
-            out = layers.fully_connected(out, num_outputs=256, activation_fn=tf.nn.relu)
-            out = layers.fully_connected(out, num_outputs=512, activation_fn=tf.nn.relu)
-            out = layers.fully_connected(out, num_outputs=1024, activation_fn=tf.nn.relu)
+            out = layers.fully_connected(out, num_outputs=4096, activation_fn=tf.nn.relu)
+            out = layers.fully_connected(out, num_outputs=2048, activation_fn=tf.nn.relu)
             out = layers.fully_connected(out, num_outputs=1024, activation_fn=tf.nn.relu)
             out = layers.fully_connected(out, num_outputs=512, activation_fn=tf.nn.relu)
             out = layers.fully_connected(out, num_outputs=256, activation_fn=tf.nn.relu)

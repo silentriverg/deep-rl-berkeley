@@ -19,7 +19,7 @@ def train_timer(num_action, eff_range):
         for _ in range(5):
             last_obs, _, _, _ = env.step(0)
         for t in range(100):
-            control_output = dqn_timer.controller(last_obs[51], sp)
+            control_output = dqn_timer.controller(last_obs[51], sp, t)
             last_obs, _, _, _ = env.step(control_output)
             agent_pos = last_obs[51]
             if agent_pos <= sp+eff_range and agent_pos >= sp-eff_range:

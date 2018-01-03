@@ -11,9 +11,9 @@ import generateTimer
 
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedule"])
 NUM_ACTION_TIMER = 11#166
-EFF_RANGE = 8
+EFF_RANGE = 15
 
-def controller(state, setpoint):
+def controller(state, setpoint, t):
     # setpoint top bound 38 bottom bound 203
     # action 0,1 not move; 2,4 up; 3,5 down
 
@@ -106,8 +106,7 @@ def learn(env,
     num_actions = NUM_ACTION_TIMER
 
     timer_table = generateTimer.train_timer(num_actions, EFF_RANGE)
-
-    #print(timer)
+    print(timer_table)
 
     # set up placeholders
     # placeholder for current observation (or state)
@@ -189,7 +188,7 @@ def learn(env,
             controller_output = 0
 
         for tt in range(timer):
-            controller_output = controller(last_obs[51], setpoint)
+            controller_output = controller(last_obs[51], setpoint, t)
             last_obs, reward, done, info = env.step(controller_output)
             cum_reward = cum_reward + reward
 

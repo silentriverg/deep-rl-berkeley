@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/zmart/deep-rl-berkeley/hw3/model/timer_model.ckpt"
+all_model_checkpoint_paths: "/home/zmart/deep-rl-berkeley/hw3/model/timer_model.ckpt"
